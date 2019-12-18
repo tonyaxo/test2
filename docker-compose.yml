@@ -1,0 +1,41 @@
+version: '3.5'
+services:
+  web:
+    image: 'nginx:latest'
+    ports:
+      - '${APP_IP}:80:80'
+    environment:
+      - NGINX_HOST=${NGINX_HOST}
+      - NGINX_PORT=80
+    volumes:
+      - ${PWD}:/app:cached
+      - ${PWD}/docker/nginx/conf.d/default.template:/etc/nginx/conf.d/default.template:delegated
+    links:
+      - php
+      - mysql
+    command: /bin/bash -c "envsubst '$$NGINX_HOST $$NGINX_PORT' < /etc/nginx/conf.d/default.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
+  php:
+    build: 
+      context: ./.devcontainer
+      dockerfile: Dockerfile
+    volumes:
+      - ~/.composer-docker/cache:/root/.composer/cache:delegated
+      - ${PWD}:/app:delegated
+    environment:
+      # - COMPOSER=/var/www/app/composer.json
+      # - COMPOSER_VENDOR_DIR=/var/www/app/vendor
+      - GITHUB_API_TOKEN=${GITHUB_API_TOKEN:-""}
+    links:
+      - mysql
+  mysql:
+    image: mariadb:10.2
+    volumes:
+      - mysqldata:/var/lib/mysql
+      - ${PWD}/docker/mysql/conf.d:/etc/mysql/conf.d:delegated
+    ports:
+      - '${APP_IP}:3306:3306'
+    environment:
+      MYSQL_TCP_PORT: 3306
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
+volumes:
+  mysqldata:
